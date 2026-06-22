@@ -1,0 +1,29 @@
+name: Move Release Tag
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version to retag, e.g. v0.0.3"
+        required: true
+
+jobs:
+  move-tag:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Move tag to current main HEAD
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -f "${{ github.event.inputs.version }}"
+          git push origin -f "${{ github.event.inputs.version }}"
