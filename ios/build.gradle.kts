@@ -1,5 +1,5 @@
-import org.gradle.internal.os.OperatingSystem
 import org.gradle.api.tasks.PathSensitivity
+import org.gradle.internal.os.OperatingSystem
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework

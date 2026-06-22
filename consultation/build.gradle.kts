@@ -205,4 +205,3 @@ mavenPublishing {
 dependencyCheck {
     skip = true
 }
-
