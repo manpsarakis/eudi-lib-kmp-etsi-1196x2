@@ -36,6 +36,7 @@ kotlin {
                 "kotlin.ExperimentalStdlibApi",
                 "kotlin.time.ExperimentalTime",
                 "kotlin.contracts.ExperimentalContracts",
+                "kotlinx.cinterop.ExperimentalForeignApi",
             )
     }
 
@@ -56,10 +57,9 @@ kotlin {
             }
     }
 
-    // iOS targets
-    iosArm64()
-    iosX64()
-    iosSimulatorArm64()
+    // iOS targets — implementations live in the :etsi-1196x2-ios module; these declarations
+    // are required so the iosMain source set (ConsultationPlatformIos actual) compiles.
+    listOf(iosArm64(), iosX64(), iosSimulatorArm64())
 
     // Set up targets
     @OptIn(ExperimentalKotlinGradlePluginApi::class)
@@ -205,3 +205,4 @@ mavenPublishing {
 dependencyCheck {
     skip = true
 }
+

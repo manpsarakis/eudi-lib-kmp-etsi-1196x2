@@ -1,0 +1,130 @@
+name: XCFramework SwiftPM Prepare Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, e.g. v1.2.3"
+        required: true
+
+jobs:
+  prepare:
+    runs-on: macos-14
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    env:
+      INPUT_VERSION: ${{ github.event.inputs.version }}
+      GRADLE_PROJECT: etsi-1196x2-ios
+      OUTPUT_DIR: ios/build/XCFrameworks/release
+      FRAMEWORK_NAME: EudiEtsi1196x2
+      PACKAGE_NAME: EudiEtsi1196x2
+      ZIP_NAME: EudiEtsi1196x2.xcframework.zip
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build XCFramework
+        run: ./gradlew :${GRADLE_PROJECT}:assemble${FRAMEWORK_NAME}ReleaseXCFramework
+
+      - name: Zip XCFramework
+        run: |
+          cd "${OUTPUT_DIR}"
+          rm -f "${ZIP_NAME}"
+          ditto -c -k --sequesterRsrc --keepParent \
+            "${FRAMEWORK_NAME}.xcframework" \
+            "${ZIP_NAME}"
+
+      - name: Compute checksum
+        id: checksum
+        run: |
+          CHECKSUM=$(swift package compute-checksum "${OUTPUT_DIR}/${ZIP_NAME}")
+          echo "checksum=$CHECKSUM" >> "$GITHUB_OUTPUT"
+          echo "Checksum: $CHECKSUM"
+
+      - name: Create and push tag
+        run: |
+          git fetch --tags
+
+          if git rev-parse "${INPUT_VERSION}" >/dev/null 2>&1; then
+            echo "Tag ${INPUT_VERSION} already exists."
+          else
+            git tag "${INPUT_VERSION}"
+            git push origin "${INPUT_VERSION}"
+          fi
+
+      - name: Create GitHub release and upload XCFramework
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.INPUT_VERSION }}
+          name: ${{ env.INPUT_VERSION }}
+          files: ${{ env.OUTPUT_DIR }}/${{ env.ZIP_NAME }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate Package.swift
+        run: |
+          cat > Package.swift <<EOF
+          // swift-tools-version: 5.9
+          import PackageDescription
+
+          let package = Package(
+              name: "${PACKAGE_NAME}",
+              platforms: [
+                  .iOS(.v14)
+              ],
+              products: [
+                  .library(
+                      name: "${PACKAGE_NAME}",
+                      targets: ["${FRAMEWORK_NAME}"]
+                  )
+              ],
+              targets: [
+                  .binaryTarget(
+                      name: "${FRAMEWORK_NAME}",
+                      url: "https://github.com/${{ github.repository }}/releases/download/${INPUT_VERSION}/${ZIP_NAME}",
+                      checksum: "${{ steps.checksum.outputs.checksum }}"
+                  )
+              ]
+          )
+          EOF
+
+          cat Package.swift
+
+      - name: Open release PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: release/${{ env.INPUT_VERSION }}
+          title: "Release ${{ env.INPUT_VERSION }}"
+          commit-message: "Prepare SwiftPM release ${{ env.INPUT_VERSION }}"
+          body: |
+            Prepares the Swift Package binary release for `${{ env.INPUT_VERSION }}`.
+
+            This PR updates:
+            - `Package.swift`
+
+            The XCFramework zip has already been uploaded to:
+
+            `https://github.com/${{ github.repository }}/releases/download/${{ env.INPUT_VERSION }}/${{ env.ZIP_NAME }}`
+
+            After this PR is merged, run the `Move Release Tag` workflow for `${{ env.INPUT_VERSION }}`.
+          add-paths: |
+            Package.swift

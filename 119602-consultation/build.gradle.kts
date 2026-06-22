@@ -37,6 +37,7 @@ kotlin {
                 "kotlin.ExperimentalStdlibApi",
                 "kotlin.time.ExperimentalTime",
                 "kotlin.contracts.ExperimentalContracts",
+                "kotlinx.cinterop.ExperimentalForeignApi",
             )
     }
 
@@ -57,10 +58,10 @@ kotlin {
             }
     }
 
-    // iOS targets
-    iosArm64()
-    iosX64()
-    iosSimulatorArm64()
+    // iOS targets — XCFramework production and all iOS-specific build machinery live in
+    // the :etsi-1196x2-ios module. These declarations are required so the KMP dependency
+    // graph resolves for iOS consumers of this module.
+    listOf(iosArm64(), iosX64(), iosSimulatorArm64())
 
     // Set up targets
     @OptIn(ExperimentalKotlinGradlePluginApi::class)
